@@ -10,6 +10,7 @@
 #define ENTER_COMMAND_STRING "+++"
 #define COMMAND_STRING_ACK_LENGTH 4
 #define COMMAND_STRING_ACK "OK\r"
+#define COMMAND_STRING_DELAY 1000
 
 Xbee::Xbee(uint8_t tx, uint8_t rx, uint8_t rts, uint8_t cts, int baud_rate = 9600, operation_modes op_mode)
     :_tx(tx), _rx(rx), _rts(rts), _cts(cts), _operation_mode(op_mode)
@@ -35,11 +36,31 @@ bool Xbee::_enter_command_mode() {
     char ack_message[COMMAND_STRING_ACK_LENGTH];
     size_t ack_message_idx = 0;
 
-    while (XBEE_SERIAL.available()) {
-        ack_message[ack_message_idx++] = (char)XBEE_SERIAL.read();
+    // add timeout to give module time to respond to the command string
+    unsigned long start_time = millis();
+    bool read_from_serial = false;
+
+    while ((millis() - start_time) < COMMAND_STRING_DELAY && !read_from_serial) {
+        read_from_serial = true;
+
+        while (XBEE_SERIAL.available() && ack_message_idx < COMMAND_STRING_ACK_LENGTH - 1) {
+            char input = XBEE_SERIAL.read();
+            ack_message[ack_message_idx++] = input;
+            
+            if (input == '\r') {
+                break;
+            }
+        }
+    } 
+    ack_message[ack_message_idx++] = '\0';
+
+    if (strcmp(ack_message, COMMAND_STRING_ACK) != 0) {
+        Serial.print("Received invalid response: ");
+        Serial.println(ack_message);
+        return false;
     }
 
-    return strcmp(ack_message, COMMAND_STRING_ACK) == 0;
+    return true;
 }
 
 bool Xbee::_send_command(char* cmd_string, int max_retry_count = 3) {
