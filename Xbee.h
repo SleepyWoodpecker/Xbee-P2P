@@ -16,7 +16,13 @@ class Xbee {
         */
         Xbee(uint8_t tx, uint8_t rx, uint8_t rts, uint8_t cts, int baud_rate = 9600, operation_modes op_mode);
 
-
+        /*
+        * Get the 64-bit hardware address of the Xbee. 
+        *
+        * @param address_string: the buffer in which to read the 64-bit address into. Buffer length should be no smaller than 65.
+        * 
+        * @return true if the hardware address was read successfully, false otherwise
+        */
         bool get_hardware_address(char* address_string);
     private:
         uint8_t _tx;  // data out to Xbee
@@ -45,6 +51,15 @@ class Xbee {
         */
         bool _send_command(char* cmd_string, int max_retry_count = 3);
 
+        /*
+        * Read the response returned by the Xbee through the rx line
+        *
+        * @param response_buffer: the buffer to read the response into
+        * @param response_buffer_length: the length of the response buffer
+        * @param response_buffer_idx&: the buffer index which will be modified, passed by reference
+        * 
+        * @return true if the read was successful, false otherwise
+        */
         bool _read_response(char* response_buffer, size_t response_buffer_length, size_t& response_buffer_idx);
 
         /*
