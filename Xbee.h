@@ -4,10 +4,6 @@
 #include <cstdint>
 #include <Arduino.h>
 
-// AT COMMANDS
-#define SH "SH" // Serial number high
-#define SL "SL" // Serial number low
-
 enum operation_modes {
     TRANSPARENT,
     API
@@ -49,6 +45,7 @@ class Xbee {
         */
         bool _send_command(char* cmd_string, int max_retry_count = 3);
 
+        bool _read_response(char* response_buffer, size_t response_buffer_length, size_t& response_buffer_idx);
 
         /*
         * Constructs an AT command, based on the following syntax:

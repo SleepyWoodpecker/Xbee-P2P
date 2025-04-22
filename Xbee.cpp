@@ -1,4 +1,5 @@
 #include "Xbee.h"
+#include "AT_Commands.h"
 
 // NOTE: note sure if this is a problem that this becomes hardware dependent, but we will rock with it for now
 #include <Arduino.h>
@@ -7,10 +8,9 @@
 // use another serial port for Serial communication with the Xbee
 #define XBEE_SERIAL Serial1
 
-#define ENTER_COMMAND_STRING "+++"
 #define COMMAND_STRING_ACK_LENGTH 4
 #define COMMAND_STRING_ACK "OK\r"
-#define COMMAND_STRING_DELAY 1000
+#define RECEIVE_RESPONSE_DELAY 1000
 
 #define AT_COMMAND_STRING_LENGTH 10
 #define RECEIVE_STRING_MAX_LENGTH 64
@@ -32,62 +32,35 @@ Xbee::Xbee(uint8_t tx, uint8_t rx, uint8_t rts, uint8_t cts, int baud_rate = 960
 }
 
 bool Xbee::get_hardware_address(char* address_string) {
-    char upper_32_address[RECEIVE_STRING_MAX_LENGTH];
-    size_t upper_32_address_idx = 0;
-    char lower_32_address[RECEIVE_STRING_MAX_LENGTH];
-    size_t lower_32_address_idx = 0;
-
     char command_string[AT_COMMAND_STRING_LENGTH];
     
     // read the first 32 bits
-    _construct_AT_command(command_string, AT_COMMAND_STRING_LENGTH, "SH", 0);
-    
+    _construct_AT_command(command_string, AT_COMMAND_STRING_LENGTH, SERIAL_ADDRESS_HIGH, 0);
     if (!_send_command(command_string)) {
         Serial.println("Failed to send command to get hardware address");
         return 0;
     }
 
-    // add timeout to give module time to respond to the command string
-    unsigned long start_time = millis();
-    bool read_from_serial = false;
-
-    while ((millis() - start_time) < COMMAND_STRING_DELAY && !read_from_serial) {
-        read_from_serial = true;
-
-        while (XBEE_SERIAL.available() && upper_32_address_idx < RECEIVE_STRING_MAX_LENGTH- 1) {
-            char input = XBEE_SERIAL.read();
-            upper_32_address[upper_32_address_idx++] = input;
-
-            // might be dangerous that I am not checking for any kind of stop byte here?
-        }
-    } 
-
-    upper_32_address[upper_32_address_idx++] = '\0';
+    char upper_32_address[RECEIVE_STRING_MAX_LENGTH];
+    size_t upper_32_address_idx = 0;
     // expect a string of length 33, since the output is 32 bits plus \0 at end
-    if (upper_32_address_idx < 32) {
-        Serial.println("Did not receive the right number of address bytes");
+    if (!_read_response(upper_32_address, RECEIVE_STRING_MAX_LENGTH, upper_32_address_idx) || upper_32_address_idx < 32) {
+        Serial.println("Did not receive the right number of address bytes for upper address");
         return false;
     }
 
-    // reset values to read from SL
-    start_time = millis();
-    read_from_serial = false;
+    // read the next 32 bits
+    _construct_AT_command(command_string, AT_COMMAND_STRING_LENGTH, SERIAL_ADDRESS_LOW, 0);
+    if (!_send_command(command_string)) {
+        Serial.println("Failed to send command to get hardware address");
+        return 0;
+    }
 
-    while ((millis() - start_time) < COMMAND_STRING_DELAY && !read_from_serial) {
-        read_from_serial = true;
-
-        while (XBEE_SERIAL.available() && lower_32_address_idx < RECEIVE_STRING_MAX_LENGTH- 1) {
-            char input = XBEE_SERIAL.read();
-            lower_32_address[lower_32_address_idx++] = input;
-
-            // might be dangerous that I am not checking for any kind of stop byte here?
-        }
-    } 
-
-    lower_32_address[lower_32_address_idx++] = '\0';
+    char lower_32_address[RECEIVE_STRING_MAX_LENGTH];
+    size_t lower_32_address_idx = 0;
     // expect a string of length 33, since the output is 32 bits plus \0 at end
-    if (lower_32_address_idx < 32) {
-        Serial.println("Did not receive the right number of address bytes");
+    if (!_read_response(lower_32_address, RECEIVE_STRING_MAX_LENGTH, lower_32_address_idx) || lower_32_address_idx < 32) {
+        Serial.println("Did not receive the right number of address bytes for lower address");
         return false;
     }
 
@@ -102,31 +75,13 @@ void Xbee::_construct_AT_command(char* response_buffer, size_t response_buffer_l
 
 bool Xbee::_enter_command_mode() {
     delay(1100);
-    _send_command(ENTER_COMMAND_STRING);
+    _send_command(ENTER_COMMAND_MODE_STRING);
     delay(1100);
 
     char ack_message[COMMAND_STRING_ACK_LENGTH];
     size_t ack_message_idx = 0;
 
-    // add timeout to give module time to respond to the command string
-    unsigned long start_time = millis();
-    bool read_from_serial = false;
-
-    while ((millis() - start_time) < COMMAND_STRING_DELAY && !read_from_serial) {
-        read_from_serial = true;
-
-        while (XBEE_SERIAL.available() && ack_message_idx < COMMAND_STRING_ACK_LENGTH - 1) {
-            char input = XBEE_SERIAL.read();
-            ack_message[ack_message_idx++] = input;
-            
-            if (input == '\r') {
-                break;
-            }
-        }
-    } 
-    ack_message[ack_message_idx++] = '\0';
-
-    if (strcmp(ack_message, COMMAND_STRING_ACK) != 0) {
+    if (!_read_response(ack_message, COMMAND_STRING_ACK_LENGTH, ack_message_idx) || strcmp(ack_message, COMMAND_STRING_ACK) != 0) {
         Serial.print("Received invalid response: ");
         Serial.println(ack_message);
         return false;
@@ -147,4 +102,22 @@ bool Xbee::_send_command(char* cmd_string, int max_retry_count = 3) {
     XBEE_SERIAL.print(cmd_string);
     
     return try_count < max_retry_count;
+}
+
+bool Xbee::_read_response(char* response_buffer, size_t response_buffer_length, size_t& response_buffer_idx) {
+    // add timeout to give module time to respond to the command string
+    unsigned long start_time = millis();
+    bool attempted_read_from_serial = false;
+
+    while ((millis() - start_time) < RECEIVE_RESPONSE_DELAY && !attempted_read_from_serial) {
+        attempted_read_from_serial = true;
+
+        while (XBEE_SERIAL.available() && response_buffer_idx < COMMAND_STRING_ACK_LENGTH - 1) {
+            char input = XBEE_SERIAL.read();
+            response_buffer[response_buffer_idx++] = input;
+        }
+    } 
+    response_buffer[response_buffer_idx++] = '\0';
+    
+    return response_buffer_idx > 0;
 }
