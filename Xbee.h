@@ -4,6 +4,10 @@
 #include <cstdint>
 #include <Arduino.h>
 
+// AT COMMANDS
+#define SH "SH" // Serial number high
+#define SL "SL" // Serial number low
+
 enum operation_modes {
     TRANSPARENT,
     API
@@ -17,6 +21,7 @@ class Xbee {
         Xbee(uint8_t tx, uint8_t rx, uint8_t rts, uint8_t cts, int baud_rate = 9600, operation_modes op_mode);
 
 
+        bool get_hardware_address(char* address_string);
     private:
         uint8_t _tx;  // data out to Xbee
         uint8_t _rx;  // data in from Xbee
@@ -43,6 +48,18 @@ class Xbee {
         * @return true if the command was sent successfully
         */
         bool _send_command(char* cmd_string, int max_retry_count = 3);
+
+
+        /*
+        * Constructs an AT command, based on the following syntax:
+        *   - AT<CMD><param>\r
+        *
+        * @param response_buffer: the buffer to put the AT command in
+        * @param response_buffer_length: the size of the response buffer
+        * @param command: the ASCII command that should be sent to the module
+        * @param param: the param that you wish to pass in for that command
+        */
+        void _construct_AT_command(char* response_buffer, size_t response_buffer_length, const char* command, const int param);
 };
 
 #endif
