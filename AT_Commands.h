@@ -7,4 +7,6 @@
 #define SERIAL_ADDRESS_HIGH "SH"
 #define SERIAL_ADDRESS_LOW "SL"
 
+#define MAXIMUM_PACKET_PAYLOAD_BYTES "NP"
+
 #endif

@@ -4,12 +4,13 @@
 // NOTE: note sure if this is a problem that this becomes hardware dependent, but we will rock with it for now
 #include <Arduino.h>
 #include <string.h>
+#include <stdlib.h>
 
 // use another serial port for Serial communication with the Xbee
 #define XBEE_SERIAL Serial1
 
 #define COMMAND_STRING_ACK_LENGTH 4
-#define RECEIVE_RESPONSE_DELAY 5000
+#define RECEIVE_RESPONSE_TIMEOUT 5000
 
 #define AT_COMMAND_STRING_LENGTH 10
 #define RECEIVE_STRING_MAX_LENGTH 64
@@ -76,6 +77,30 @@ bool Xbee::get_hardware_address(char* address_string) {
     return true;
 }
 
+int Xbee::get_max_bytes_per_req() {
+    if (!_enter_command_mode()) {
+        Serial.println("Unable to enter command mode");
+        return -1;
+    }
+
+    char command_string[AT_COMMAND_STRING_LENGTH];
+    _construct_AT_command(command_string, AT_COMMAND_STRING_LENGTH, MAXIMUM_PACKET_PAYLOAD_BYTES, -1);
+    
+    char response_buffer[RECEIVE_STRING_MAX_LENGTH];
+    size_t response_buffer_idx = 0;
+    if (!_send_command(command_string)) {
+        Serial.println("Failed to send command to get max number of bytes per RF request");
+        return -1;
+    }
+
+    if (!_read_response(response_buffer, RECEIVE_STRING_MAX_LENGTH, response_buffer_idx)) {
+        Serial.println("Failed to read response for max number of bytes per RF request");
+        return -1;
+    }
+
+    return atoi(response_buffer);
+}
+
 void Xbee::_construct_AT_command(char* response_buffer, size_t response_buffer_length, const char* command, const int param) {
     if (param >= 0) {
         snprintf(response_buffer, response_buffer_length, "AT%s%d\r", command, param);
@@ -121,7 +146,7 @@ bool Xbee::_read_response(char* response_buffer, size_t response_buffer_length, 
     unsigned long start_time = millis();
     bool attempted_read_from_serial = false;
 
-    while ((millis() - start_time) < RECEIVE_RESPONSE_DELAY) {
+    while ((millis() - start_time) < RECEIVE_RESPONSE_TIMEOUT) {
         if (!XBEE_SERIAL.available()) {
             continue;
         }

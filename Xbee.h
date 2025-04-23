@@ -19,6 +19,14 @@ class Xbee {
         * @return true if the hardware address was read successfully, false otherwise
         */
         bool get_hardware_address(char* address_string);
+
+        /*
+        * Get the maximum number of bytes that can be sent per RF transmission
+        *
+        * @return the number of bytes that can be sent per RF transmission
+        */
+        int get_max_bytes_per_req();
+
     private:
         uint8_t _tx;  // data out to Xbee
         uint8_t _rx;  // data in from Xbee
