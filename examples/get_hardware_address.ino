@@ -12,13 +12,13 @@ void setup() {
     Serial.begin(9600);
     delay(1000);
 
-    Xbee xbee(RX, RX, RTS, CTS);
-    
-    char hardware_address[65];
-    xbee.get_hardware_address(hardware_address);
+    Xbee xbee(TX, RX, RTS, CTS);
 
-    Serial.print("Hardware address is: ");
-    Serial.println(hardware_address);
+    xbee.enter_API_mode();
+
+    xbee.get_upper_bits_of_hardware_address_api();
+
+    Serial.println("\nIts over");
 }
 
 void loop() {

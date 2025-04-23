@@ -1,0 +1,7 @@
+#ifndef API_FRAME_H_
+#define API_FRAME_H_
+
+#define API_FRAME_START_DELIMITER 0x7E
+#define API_FRAME_LOCAL_AT_COMMAND_REQUEST 0x08
+
+#endif

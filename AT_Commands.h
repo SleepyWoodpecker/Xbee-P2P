@@ -3,6 +3,7 @@
 
 #define ENTER_COMMAND_MODE_STRING "+++"
 #define COMMAND_MODE_ACK "OK\r"
+#define EXIT_COMMAND_MODE "CN"
 
 #define SERIAL_ADDRESS_HIGH "SH"
 #define SERIAL_ADDRESS_LOW "SL"

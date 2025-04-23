@@ -28,19 +28,25 @@ class Xbee {
         int get_max_bytes_per_req();
 
         /*
+        * Get the upper 32 bits of the XBee's 64-bit address using the API frame. Mostly for testing purposes
+        *
+        * @return the upper 32 bits of the address as a decimal
+        */
+        int get_upper_bits_of_hardware_address_api();
+
+        /*
         * Enter API mode 1 (AP = 1)
         * 
         * @returns true if the transition succeeds, false otherwise
         */
        bool enter_API_mode();
-       
+
     private:
         uint8_t _tx;  // data out to Xbee
         uint8_t _rx;  // data in from Xbee
         uint8_t _cts; // clear to send
         uint8_t _rts; // ready to send
 
-        bool _is_in_API_mode;
         /*
         * Tries to enter command mode on the Xbee, by sending in '+++'.
         * 
@@ -51,6 +57,13 @@ class Xbee {
         bool _enter_command_mode();
 
         /*
+        * Exit API mode
+        *
+        * @return true if the exit was successful
+        */
+        bool _exit_command_mode();
+
+        /*
         * Check that the module is ready for receiving data before sending it out
         *
         * @param cmd_string: the command that you wish to send to the Xbee
@@ -59,6 +72,17 @@ class Xbee {
         * @return true if the command was sent successfully
         */
         bool _send_command(char* cmd_string, int max_retry_count = 3);
+
+        /*
+        * Formats Xbee commands as a byte string, required API mode
+        *
+        * @param cmd_string: the API frame to send over serial
+        * @param length: the length of the API frame
+        * @param: the maximum number of retries that the command string will make if the receive buffer is full
+        * 
+        * @return true if the byte command was sent successfully, false otherwise
+        */
+        bool _send_byte_command(uint8_t* cmd_string, size_t length, int max_retry_count = 3);
 
         /*
         * Read the response returned by the Xbee through the rx line
@@ -72,6 +96,17 @@ class Xbee {
         bool _read_response(char* response_buffer, size_t response_buffer_length, size_t& response_buffer_idx);
 
         /*
+        * Read the byte response from the Xbee in API Mode
+        *
+        * @param response_buffer: the buffer to read the response into
+        * @param response_buffer_length: the length of the response buffer
+        * @param response_buffer_idx: the index of the response buffer to start writing to. passed by reference
+        * 
+        * @return true if some bytes are read
+        */
+        bool _read_byte_response(unsigned char* response_buffer, size_t response_buffer_length, size_t& response_buffer_idx);
+
+        /*
         * Constructs an AT command, based on the following syntax:
         *   - AT<CMD><param>\r
         *
@@ -81,6 +116,16 @@ class Xbee {
         * @param param: the param that you wish to pass in for that command, -1 if there is no param to be passed
         */
         void _construct_AT_command(char* response_buffer, size_t response_buffer_length, const char* command, const int param);
+
+        /*
+        * Constructs an API frame to create a local AT request
+        *
+        * @param payload: the byte string payload that will be put into the frame
+        * 
+        * @return the size of the api frame created
+        */
+        size_t _construct_AT_API_frame(uint8_t* api_frame_buffer, size_t api_frame_buffer_length, char* payload, uint8_t api_command, char* at_command, uint8_t frame_number = 1);
+
 };
 
 #endif
