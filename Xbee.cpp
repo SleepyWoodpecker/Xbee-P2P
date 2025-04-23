@@ -31,6 +31,11 @@ Xbee::Xbee(uint8_t tx, uint8_t rx, uint8_t rts, uint8_t cts, int baud_rate = 960
 }
 
 bool Xbee::get_hardware_address(char* address_string) {
+    if (!_enter_command_mode()) {
+        Serial.println("Unable to enter command mode");
+        return false;
+    }
+
     char command_string[AT_COMMAND_STRING_LENGTH];
     
     // read the first 32 bits
