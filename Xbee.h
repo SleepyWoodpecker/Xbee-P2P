@@ -14,7 +14,7 @@ class Xbee {
         /*
         * Here, the rts and cts refer to the pins that are connected to the 
         */
-        Xbee(uint8_t tx, uint8_t rx, uint8_t rts, uint8_t cts, int baud_rate = 9600, operation_modes op_mode);
+        Xbee(uint8_t tx, uint8_t rx, uint8_t rts, uint8_t cts, int baud_rate = 9600);
 
         /*
         * Get the 64-bit hardware address of the Xbee. 
