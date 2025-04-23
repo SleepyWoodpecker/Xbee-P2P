@@ -27,12 +27,20 @@ class Xbee {
         */
         int get_max_bytes_per_req();
 
+        /*
+        * Enter API mode 1 (AP = 1)
+        * 
+        * @returns true if the transition succeeds, false otherwise
+        */
+       bool enter_API_mode();
+       
     private:
         uint8_t _tx;  // data out to Xbee
         uint8_t _rx;  // data in from Xbee
         uint8_t _cts; // clear to send
         uint8_t _rts; // ready to send
 
+        bool _is_in_API_mode;
         /*
         * Tries to enter command mode on the Xbee, by sending in '+++'.
         * 

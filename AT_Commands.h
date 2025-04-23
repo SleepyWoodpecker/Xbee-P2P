@@ -8,5 +8,6 @@
 #define SERIAL_ADDRESS_LOW "SL"
 
 #define MAXIMUM_PACKET_PAYLOAD_BYTES "NP"
+#define TOGGLE_API_MODE "AP"
 
 #endif

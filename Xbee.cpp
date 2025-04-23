@@ -101,6 +101,20 @@ int Xbee::get_max_bytes_per_req() {
     return atoi(response_buffer);
 }
 
+bool Xbee::enter_API_mode() {
+    if (!_enter_command_mode()) {
+        Serial.println("Unable to enter command mode");
+        return false;
+    }
+
+    char command_string[AT_COMMAND_STRING_LENGTH];
+    _construct_AT_command(command_string, AT_COMMAND_STRING_LENGTH, TOGGLE_API_MODE, 1);
+    if (!_send_command(command_string)) {
+        Serial.println("Failed to write to set AP mode to 1");
+        return -1;
+    }
+}
+
 void Xbee::_construct_AT_command(char* response_buffer, size_t response_buffer_length, const char* command, const int param) {
     if (param >= 0) {
         snprintf(response_buffer, response_buffer_length, "AT%s%d\r", command, param);
