@@ -9,7 +9,6 @@
 #define XBEE_SERIAL Serial1
 
 #define COMMAND_STRING_ACK_LENGTH 4
-#define COMMAND_STRING_ACK "OK\r"
 #define RECEIVE_RESPONSE_DELAY 1000
 
 #define AT_COMMAND_STRING_LENGTH 10
@@ -81,7 +80,7 @@ bool Xbee::_enter_command_mode() {
     char ack_message[COMMAND_STRING_ACK_LENGTH];
     size_t ack_message_idx = 0;
 
-    if (!_read_response(ack_message, COMMAND_STRING_ACK_LENGTH, ack_message_idx) || strcmp(ack_message, COMMAND_STRING_ACK) != 0) {
+    if (!_read_response(ack_message, COMMAND_STRING_ACK_LENGTH, ack_message_idx) || strcmp(ack_message, COMMAND_MODE_ACK)!= 0) {
         Serial.print("Received invalid response: ");
         Serial.println(ack_message);
         return false;

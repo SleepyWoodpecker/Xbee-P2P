@@ -2,6 +2,8 @@
 #define AT_COMMANDS_H_
 
 #define ENTER_COMMAND_MODE_STRING "+++"
+#define COMMAND_MODE_ACK "OK\r"
+
 #define SERIAL_ADDRESS_HIGH "SH"
 #define SERIAL_ADDRESS_LOW "SL"
 
