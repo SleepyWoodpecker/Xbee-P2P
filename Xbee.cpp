@@ -6,7 +6,7 @@
 #include <string.h>
 
 // use another serial port for Serial communication with the Xbee
-#define XBEE_SERIAL Serial2
+#define XBEE_SERIAL Serial1
 
 #define COMMAND_STRING_ACK_LENGTH 4
 #define RECEIVE_RESPONSE_DELAY 5000
@@ -43,7 +43,7 @@ bool Xbee::get_hardware_address(char* address_string) {
     char command_string[AT_COMMAND_STRING_LENGTH];
     
     // read the first 32 bits
-    _construct_AT_command(command_string, AT_COMMAND_STRING_LENGTH, SERIAL_ADDRESS_HIGH, 0);
+    _construct_AT_command(command_string, AT_COMMAND_STRING_LENGTH, SERIAL_ADDRESS_HIGH, -1);
     if (!_send_command(command_string)) {
         Serial.println("Failed to send command to get hardware address");
         return 0;
@@ -51,14 +51,14 @@ bool Xbee::get_hardware_address(char* address_string) {
 
     char upper_32_address[RECEIVE_STRING_MAX_LENGTH];
     size_t upper_32_address_idx = 0;
-    // expect a string of length 33, since the output is 32 bits plus \0 at end
-    if (!_read_response(upper_32_address, RECEIVE_STRING_MAX_LENGTH, upper_32_address_idx) || upper_32_address_idx == 0) {
+    if (!_read_response(upper_32_address, RECEIVE_STRING_MAX_LENGTH, upper_32_address_idx)) {
+        Serial.println(upper_32_address);
         Serial.println("Did not receive the right number of address bytes for upper address");
         return false;
     }
 
     // read the next 32 bits
-    _construct_AT_command(command_string, AT_COMMAND_STRING_LENGTH, SERIAL_ADDRESS_LOW, 0);
+    _construct_AT_command(command_string, AT_COMMAND_STRING_LENGTH, SERIAL_ADDRESS_LOW, -1);
     if (!_send_command(command_string)) {
         Serial.println("Failed to send command to get hardware address");
         return 0;
@@ -66,8 +66,7 @@ bool Xbee::get_hardware_address(char* address_string) {
 
     char lower_32_address[RECEIVE_STRING_MAX_LENGTH];
     size_t lower_32_address_idx = 0;
-    // expect a string of length 33, since the output is 32 bits plus \0 at end
-    if (!_read_response(lower_32_address, RECEIVE_STRING_MAX_LENGTH, lower_32_address_idx) || lower_32_address_idx == 0) {
+    if (!_read_response(lower_32_address, RECEIVE_STRING_MAX_LENGTH, lower_32_address_idx)) {
         Serial.println("Did not receive the right number of address bytes for lower address");
         return false;
     }
@@ -78,7 +77,12 @@ bool Xbee::get_hardware_address(char* address_string) {
 }
 
 void Xbee::_construct_AT_command(char* response_buffer, size_t response_buffer_length, const char* command, const int param) {
-    snprintf(response_buffer, response_buffer_length, "AT%s\r", command);
+    if (param >= 0) {
+        snprintf(response_buffer, response_buffer_length, "AT%s%d\r", command, param);
+    }
+    else {
+        snprintf(response_buffer, response_buffer_length, "AT%s\r", command);
+    }
 }
 
 bool Xbee::_enter_command_mode() {
@@ -90,7 +94,7 @@ bool Xbee::_enter_command_mode() {
     size_t ack_message_idx = 0;
 
     if (!_read_response(ack_message, COMMAND_STRING_ACK_LENGTH, ack_message_idx) || strcmp(ack_message, COMMAND_MODE_ACK)!= 0) {
-        Serial.print("Received invalid response: ");
+        Serial.print("Received invalid response when trying to activate command mode: ");
         Serial.printf("%c %zu\n", ack_message[0], strlen(ack_message));
         return false;
     }
@@ -108,9 +112,8 @@ bool Xbee::_send_command(char* cmd_string, int max_retry_count) {
     // }
 
     size_t wrote = XBEE_SERIAL.write(cmd_string);
-    Serial.printf("Wrote: %d\n", wrote);
     
-    return try_count < max_retry_count;
+    return wrote > 0 && try_count < max_retry_count;
 }
 
 bool Xbee::_read_response(char* response_buffer, size_t response_buffer_length, size_t& response_buffer_idx) {
@@ -118,15 +121,21 @@ bool Xbee::_read_response(char* response_buffer, size_t response_buffer_length, 
     unsigned long start_time = millis();
     bool attempted_read_from_serial = false;
 
-    // TODO: stop after \r
     while ((millis() - start_time) < RECEIVE_RESPONSE_DELAY) {
-        while (XBEE_SERIAL.available() && response_buffer_idx < response_buffer_length - 1) {
-            Serial.println("Serial port available");
-            char input = XBEE_SERIAL.read();
-            response_buffer[response_buffer_idx++] = input;
+        if (!XBEE_SERIAL.available()) {
+            continue;
         }
-    } 
+
+        char input = XBEE_SERIAL.read();
+        response_buffer[response_buffer_idx++] = input;
+
+        // response is terminated by a '\r'or when the idx of the buffer exceeds its length
+        if (input == '\r' || response_buffer_idx >= response_buffer_length - 1) {
+            break;
+        }
+    }
+
     response_buffer[response_buffer_idx++] = '\0';
     
-    return response_buffer_idx > 0;
+    return response_buffer_idx > 1;
 }

@@ -4,11 +4,6 @@
 #include <cstdint>
 #include <Arduino.h>
 
-enum operation_modes {
-    TRANSPARENT,
-    API
-};
-
 class Xbee {
     public:
         /*
@@ -29,8 +24,6 @@ class Xbee {
         uint8_t _rx;  // data in from Xbee
         uint8_t _cts; // clear to send
         uint8_t _rts; // ready to send
-
-        operation_modes _operation_mode;
 
         /*
         * Tries to enter command mode on the Xbee, by sending in '+++'.
@@ -69,7 +62,7 @@ class Xbee {
         * @param response_buffer: the buffer to put the AT command in
         * @param response_buffer_length: the size of the response buffer
         * @param command: the ASCII command that should be sent to the module
-        * @param param: the param that you wish to pass in for that command
+        * @param param: the param that you wish to pass in for that command, -1 if there is no param to be passed
         */
         void _construct_AT_command(char* response_buffer, size_t response_buffer_length, const char* command, const int param);
 };
