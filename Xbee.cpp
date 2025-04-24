@@ -17,8 +17,8 @@
 #define RECEIVE_STRING_MAX_LENGTH 64
 #define API_FRAME_MAX_LENGTH 128
 
-Xbee::Xbee(uint8_t tx, uint8_t rx, uint8_t rts, uint8_t cts, int baud_rate)
-    :_tx(tx), _rx(rx), _rts(rts), _cts(cts)
+Xbee::Xbee(uint8_t tx, uint8_t rx, uint8_t rts, uint8_t cts, uint64_t destination_address, int baud_rate)
+    :_tx(tx), _rx(rx), _rts(rts), _cts(cts), _destination_address(destination_address)
 {
     // SERIAL_8N1 tells the serial port dictates that each frame is 8 bits with 1 stop bit
     XBEE_SERIAL.begin(baud_rate, SERIAL_8N1, _rx, _tx);
@@ -191,7 +191,7 @@ size_t Xbee::_construct_AT_API_frame(uint8_t* api_frame_buffer, size_t api_frame
     );
 
     while (
-        original_payload_idx < API_FRAME_MAX_LENGTH && 
+        api_frame_idx < API_FRAME_MAX_LENGTH && 
         payload[original_payload_idx] != '\0'
     ) {
         api_frame_buffer[api_frame_idx] = (unsigned char) payload[original_payload_idx];
@@ -211,6 +211,66 @@ size_t Xbee::_construct_AT_API_frame(uint8_t* api_frame_buffer, size_t api_frame
     api_frame_buffer[2] = length & 0xFF;
 
     return api_frame_idx + 1;
+}
+
+size_t Xbee::_construct_Tx_API_frame(uint8_t* api_frame_buffer, size_t api_frame_buffer_length, char* payload, uint8_t frame_number) {
+    // put in dummy values in the frame so the length can later bec calculated with strlen()
+    memset(api_frame_buffer, 0, api_frame_buffer_length); // NOTE: this might not be necessary
+
+    api_frame_buffer[0] = API_FRAME_START_DELIMITER;
+    api_frame_buffer[1] = 0x05;
+    api_frame_buffer[2] = 0x05;
+    api_frame_buffer[3] = API_FRAME_TRANSMIT_REQUEST;
+    api_frame_buffer[4] = frame_number;
+    
+    uint8_t byte_sum = (
+        API_FRAME_TRANSMIT_REQUEST +
+        frame_number +
+        0xFF +
+        0xFE +
+        0x00 +
+        0x00
+    );
+
+    // store the destination address in the next 8 bytes
+    size_t api_frame_buffer_idx = 5;
+    for (int i = 0; i < 8; ++i) {
+        uint8_t address_byte = (_destination_address >> (8 * i)) & 0xFF;
+        byte_sum += address_byte;
+        api_frame_buffer[api_frame_buffer_idx++] = address_byte;
+    }
+
+    // set the reserved field
+    api_frame_buffer[api_frame_buffer_idx++] = 0xFF;
+    api_frame_buffer[api_frame_buffer_idx++] = 0xFE;
+    
+    // broadcast radius
+    api_frame_buffer[api_frame_buffer_idx++] = 0x00;
+
+    // options
+    api_frame_buffer[api_frame_buffer_idx++] = 0x00;
+
+    size_t payload_idx = 0;
+    while (
+        api_frame_buffer_idx < API_FRAME_MAX_LENGTH &&
+        payload[payload_idx] != '\0'
+    ) {
+        api_frame_buffer[api_frame_buffer_idx] = (uint8_t) payload[payload_idx]; 
+        byte_sum += api_frame_buffer[api_frame_buffer_idx];
+        
+        ++api_frame_buffer_idx;
+        ++payload_idx;
+    }
+
+    // add checksum
+    api_frame_buffer[api_frame_buffer_idx] = 0xFF - byte_sum;
+
+    // correct the length
+    size_t length = api_frame_buffer_idx - 3;
+    api_frame_buffer[1] = (length >> 8) & 0xFF;
+    api_frame_buffer[2] = length & 0xFF;
+
+    return api_frame_buffer_idx + 1;
 }
 
 bool Xbee::_enter_command_mode() {

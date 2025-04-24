@@ -9,7 +9,7 @@ class Xbee {
         /*
         * Here, the rts and cts refer to the pins that are connected to the 
         */
-        Xbee(uint8_t tx, uint8_t rx, uint8_t rts, uint8_t cts, int baud_rate = 9600);
+        Xbee(uint8_t tx, uint8_t rx, uint8_t rts, uint8_t cts, uint64_t destination_address, int baud_rate = 9600);
 
         /*
         * Get the 64-bit hardware address of the Xbee. 
@@ -46,6 +46,8 @@ class Xbee {
         uint8_t _rx;  // data in from Xbee
         uint8_t _cts; // clear to send
         uint8_t _rts; // ready to send
+
+        uint64_t _destination_address;
 
         /*
         * Tries to enter command mode on the Xbee, by sending in '+++'.
@@ -125,6 +127,18 @@ class Xbee {
         * @return the size of the api frame created
         */
         size_t _construct_AT_API_frame(uint8_t* api_frame_buffer, size_t api_frame_buffer_length, char* payload, uint8_t api_command, char* at_command, uint8_t frame_number = 1);
+
+        /*
+        * Constructs an API frame to create a Tx request
+        *
+        * @param api_frame_buffer: the buffer to write the request frame into
+        * @param api_frame_buffer_length: the size of the frame buffer
+        * @param payload: the byte string that will be put into the frame // NOTE: need to test what happens if the byte string > 100 bytes
+        * @param frame_number: the frame number of the API frame
+        * 
+        * @return the size of the API frame created
+        */
+        size_t _construct_Tx_API_frame(uint8_t* api_frame_buffer, size_t api_frame_buffer_length, char* payload, uint8_t frame_number = 1);
 
 };
 

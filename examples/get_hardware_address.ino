@@ -27,5 +27,11 @@ void setup() {
 }
 
 void loop() {
-
+    uint8_t response[100];
+    size_t response_buffer_idx = 0;
+    if (!_read_byte_response(response, 100, response_buffer_idx)) {
+        Serial.println("Read nothing :(");
+        return;
+    }
+    Serial.println("\nIts over");
 }
