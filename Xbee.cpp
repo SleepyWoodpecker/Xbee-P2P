@@ -115,12 +115,13 @@ int Xbee::get_upper_bits_of_hardware_address_api() {
     }
 
     size_t response_buffer_idx = 0;
-    if (!_read_byte_response(api_frame, API_FRAME_MAX_LENGTH, response_buffer_idx)) {
-        Serial.println("Failed to read response for max number of bytes per RF request");
+    if (!_read_byte_response(api_frame, API_FRAME_MAX_LENGTH, response_buffer_idx, API_RESPONSE_OFFSET_HARDWARE_ADDRESS)) {
+        Serial.println("Error encountered when trying to read byte response");
         return -1;
     }
     
-    for (int i = 0; i < response_buffer_idx + 1; ++i) {
+    Serial.println("Writing result");
+    for (int i = 0; i < response_buffer_idx - 1; ++i) {
         Serial.printf("%x ", api_frame[i]);
     }
 
@@ -141,7 +142,7 @@ bool Xbee::enter_API_mode() {
 
     char ack_message[COMMAND_STRING_ACK_LENGTH];
     size_t ack_message_idx = 0;
-    if (!_read_response(ack_message, COMMAND_STRING_ACK_LENGTH, ack_message_idx) || strcmp(ack_message, COMMAND_MODE_ACK)!= 0) {
+    if (!_read_response(ack_message, COMMAND_STRING_ACK_LENGTH, ack_message_idx) || strcmp(ack_message, COMMAND_MODE_ACK) != 0) {
         Serial.print("Received invalid response when trying to activate command mode: ");
         Serial.printf("%c %zu\n", ack_message[0], strlen(ack_message));
         return false;
@@ -363,21 +364,63 @@ bool Xbee::_read_response(char* response_buffer, size_t response_buffer_length, 
     return response_buffer_idx > 1;
 }
 
-bool Xbee::_read_byte_response(unsigned char* response_buffer, size_t response_buffer_length, size_t& response_buffer_idx) {
+bool Xbee::_read_byte_response(uint8_t* response_buffer, size_t response_buffer_length, size_t& response_buffer_idx, size_t message_offset_from_start) {
     unsigned long start_time = millis();
+    bool checksum_valid = false;
+
     while ((millis() - start_time) < RECEIVE_RESPONSE_TIMEOUT) {
-        if (!XBEE_SERIAL.available()) {
+        // wait for the start byte to continue reading
+        if (!XBEE_SERIAL.available() || (uint8_t)XBEE_SERIAL.peek() != API_FRAME_START_DELIMITER) {
             continue;
         }
 
-        unsigned char input = XBEE_SERIAL.read();
-        response_buffer[response_buffer_idx++] = input;
+        uint8_t stop_byte = XBEE_SERIAL.read();
+        delay(10);
+        // the next two bytes will be the length
+        uint16_t size_msb = XBEE_SERIAL.read();
+        delay(10);
+        uint16_t size_lsb = XBEE_SERIAL.read();
 
-        // response is terminated by a '\r'or when the idx of the buffer exceeds its length
-        if (input == '\r' || response_buffer_idx >= response_buffer_length - 1) {
-            break;
+        size_t sequence_length = (size_msb << 8) + size_lsb;
+
+        uint8_t byte_sum = 0;
+        size_t read = 0;
+
+        unsigned long read_start = millis();
+        // then start reading the message
+        while (
+            read < sequence_length && 
+            response_buffer_idx < response_buffer_length && 
+            millis() - read_start < RECEIVE_RESPONSE_TIMEOUT
+        ) {
+            if (!XBEE_SERIAL.available()) {
+                continue;
+            }
+
+
+            uint8_t input = XBEE_SERIAL.read();
+            ++read;
+            byte_sum += input;
+
+            if (read > message_offset_from_start - 3) {
+                response_buffer[response_buffer_idx++] = input;
+            }
         }
+        
+        uint8_t xbee_checksum = XBEE_SERIAL.read();
+        checksum_valid = xbee_checksum == (0xFF - byte_sum);
+        Serial.printf("%x, %x", xbee_checksum, (0xFF - byte_sum));
+        break;
     }
     
+    if (!checksum_valid) {
+        Serial.println("Checksum invalid! Discarding packet");
+        memset(response_buffer, 0, response_buffer_length);
+        return false;
+    }
+
+    // add null byte to the end of the byte sequence so it can be read as a string
+    response_buffer[response_buffer_idx++] = '\0';
+
     return response_buffer_idx > 0;
 }   

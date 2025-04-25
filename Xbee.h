@@ -98,7 +98,7 @@ class Xbee {
         bool _read_response(char* response_buffer, size_t response_buffer_length, size_t& response_buffer_idx);
 
         /*
-        * Read the byte response from the Xbee in API Mode
+        * Read the byte response from the Xbee in API Mode. Should start with 0x7E
         *
         * @param response_buffer: the buffer to read the response into
         * @param response_buffer_length: the length of the response buffer
@@ -106,7 +106,7 @@ class Xbee {
         * 
         * @return true if some bytes are read
         */
-        bool _read_byte_response(unsigned char* response_buffer, size_t response_buffer_length, size_t& response_buffer_idx);
+        bool _read_byte_response(uint8_t* response_buffer, size_t response_buffer_length, size_t& response_buffer_idx, size_t message_offset_from_start);
 
         /*
         * Constructs an AT command, based on the following syntax:
