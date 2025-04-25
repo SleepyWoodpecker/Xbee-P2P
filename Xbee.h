@@ -41,6 +41,8 @@ class Xbee {
         */
        bool enter_API_mode();
 
+       size_t read_Tx_API_frame(uint8_t* response_buffer, size_t response_buffer_size);
+
     private:
         uint8_t _tx;  // data out to Xbee
         uint8_t _rx;  // data in from Xbee

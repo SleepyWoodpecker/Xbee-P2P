@@ -157,6 +157,16 @@ bool Xbee::enter_API_mode() {
     return true;
 }
 
+size_t Xbee::read_Tx_API_frame(uint8_t* response_buffer, size_t response_buffer_size) {
+    size_t response_buffer_idx = 0;
+    if (!_read_byte_response(response_buffer, response_buffer_size, response_buffer_idx, API_RESPONSE_RECEIVE_OFFSET)) {
+        Serial.println("Invalid response received over radio");
+        return 0;
+    }
+
+    return response_buffer_idx + 1;
+}
+
 void Xbee::_construct_AT_command(char* response_buffer, size_t response_buffer_length, const char* command, const int param) {
     if (param >= 0) {
         snprintf(response_buffer, response_buffer_length, "AT%s%d\r", command, param);
